@@ -24,7 +24,7 @@ concurrency:
 jobs:
   rollback:
     name: Roll back ${{ inputs.environment }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ inputs.environment }}
     env:
       TF_IN_AUTOMATION: "true"
@@ -33,13 +33,13 @@ jobs:
       TF_VAR_image_tag: ${{ inputs.image_tag }}
       ROLLBACK_IMAGE_TAG: ${{ inputs.image_tag }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
           role-session-name: rollback-${{ github.run_id }}-${{ inputs.environment }}
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.10.5"
       - name: Load optional environment configuration

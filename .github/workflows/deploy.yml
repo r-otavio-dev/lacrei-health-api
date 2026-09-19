@@ -24,7 +24,7 @@ concurrency:
 jobs:
   preflight:
     name: Check deployment configuration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: ${{ github.event_name == 'push' && 'staging' || inputs.environment }}
     outputs:
       configured: ${{ steps.check.outputs.configured }}
@@ -53,7 +53,7 @@ jobs:
     name: Build and deploy ${{ matrix.environment }}
     needs: [preflight, quality-gate]
     if: needs.preflight.outputs.configured == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -65,14 +65,14 @@ jobs:
       TF_VAR_secret_arns: ${{ secrets.APP_SECRET_ARNS_JSON }}
       IMAGE_TAG: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Configure AWS credentials through OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
           role-session-name: github-${{ github.run_id }}-${{ matrix.environment }}
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.10.5"
       - name: Load optional environment configuration
@@ -111,9 +111,9 @@ jobs:
         working-directory: infra
         run: echo "repository=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
       - uses: aws-actions/amazon-ecr-login@v2
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Build and push immutable image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true

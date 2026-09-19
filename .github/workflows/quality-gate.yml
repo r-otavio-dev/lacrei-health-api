@@ -9,10 +9,10 @@ permissions:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -25,7 +25,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DJANGO_SETTINGS_MODULE: config.settings
       DJANGO_SECRET_KEY: ci-only-secret-key
@@ -48,12 +48,12 @@ jobs:
           --health-cmd "pg_isready -U postgres -d lacrei_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install poetry==2.1.4
+      - run: pip install poetry==2.2.1
       - run: poetry install --no-interaction --no-ansi
       - run: poetry run python manage.py makemigrations --check --dry-run
       - run: poetry run python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yml
