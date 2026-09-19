@@ -59,6 +59,8 @@ Os workflows versionados são:
 
 Jobs de pull request executam lint/test/build sem permissão de deploy. Configure proteção de branch, environments e revisores no GitHub; esses controles não são definidos nos arquivos YAML.
 
+Enquanto um ambiente ainda não tiver `AWS_ROLE_ARN`, `APP_SECRET_ARNS_JSON`, `AWS_REGION` e `TF_STATE_BUCKET`, o preflight registra um aviso e pula o job de deploy sem transformar a ausência inicial de credenciais em falha da CI. Assim que os quatro valores existirem, o mesmo workflow habilita o deploy automaticamente.
+
 ## Configuração inicial do repositório
 
 Crie os GitHub Environments `staging` e `production`; produção deve exigir revisão. Em cada um configure:

@@ -22,13 +22,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    name: Check deployment configuration
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'push' && 'staging' || inputs.environment }}
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check required AWS settings
+        id: check
+        shell: bash
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          APP_SECRET_ARNS_JSON: ${{ secrets.APP_SECRET_ARNS_JSON }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          if [[ -n "$AWS_ROLE_ARN" && -n "$APP_SECRET_ARNS_JSON" && -n "$AWS_REGION" && -n "$TF_STATE_BUCKET" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy not configured::Add the AWS secrets and variables documented in docs/DEPLOYMENT.md to enable this environment."
+          fi
+
   quality-gate:
     name: Lint and test gate
     uses: ./.github/workflows/quality-gate.yml
 
   build-and-deploy:
     name: Build and deploy ${{ matrix.environment }}
-    needs: quality-gate
+    needs: [preflight, quality-gate]
+    if: needs.preflight.outputs.configured == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
