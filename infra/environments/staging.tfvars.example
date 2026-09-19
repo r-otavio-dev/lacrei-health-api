@@ -1,0 +1,11 @@
+environment                    = "staging"
+vpc_cidr                       = "10.20.0.0/16"
+desired_count                  = 1
+task_cpu                       = 256
+task_memory                    = 512
+log_retention_days             = 14
+database_instance_class        = "db.t4g.micro"
+database_multi_az              = false
+database_backup_retention_days = 3
+database_deletion_protection   = false
+database_skip_final_snapshot   = true

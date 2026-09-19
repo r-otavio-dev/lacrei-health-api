@@ -1,0 +1,1 @@
+"""Professionals and appointments domain."""

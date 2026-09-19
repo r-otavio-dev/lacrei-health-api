@@ -1,0 +1,114 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-${{ github.event_name == 'push' && 'staging' || inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  quality-gate:
+    name: Lint and test gate
+    uses: ./.github/workflows/quality-gate.yml
+
+  build-and-deploy:
+    name: Build and deploy ${{ matrix.environment }}
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJSON(github.event_name == 'push' && '["staging"]' || format('["{0}"]', inputs.environment)) }}
+    environment: ${{ matrix.environment }}
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_secret_arns: ${{ secrets.APP_SECRET_ARNS_JSON }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: github-${{ github.run_id }}-${{ matrix.environment }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+      - name: Load optional environment configuration
+        shell: bash
+        env:
+          ACM_CERTIFICATE_ARN: ${{ vars.ACM_CERTIFICATE_ARN }}
+          APP_ENV_JSON: ${{ vars.APP_ENV_JSON }}
+        run: |
+          if [[ -n "$ACM_CERTIFICATE_ARN" ]]; then
+            echo "TF_VAR_certificate_arn=$ACM_CERTIFICATE_ARN" >> "$GITHUB_ENV"
+          fi
+          if [[ -n "$APP_ENV_JSON" ]]; then
+            echo "TF_VAR_additional_environment=$APP_ENV_JSON" >> "$GITHUB_ENV"
+          fi
+      - name: Initialize Terraform state
+        working-directory: infra
+        run: >-
+          terraform init
+          -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          -backend-config="key=lacrei-api/${{ matrix.environment }}/terraform.tfstate"
+          -backend-config="region=${{ vars.AWS_REGION }}"
+          -backend-config="encrypt=true"
+          -backend-config="use_lockfile=true"
+      - name: Validate infrastructure
+        working-directory: infra
+        run: terraform validate
+      - name: Ensure image repository exists
+        working-directory: infra
+        run: >-
+          terraform apply -auto-approve
+          -target=aws_ecr_repository.app
+          -var-file="environments/${{ matrix.environment }}.tfvars.example"
+          -var="image_tag=${IMAGE_TAG}"
+      - name: Read repository URL
+        id: ecr
+        working-directory: infra
+        run: echo "repository=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+      - uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and push immutable image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.ecr.outputs.repository }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Plan deployment
+        working-directory: infra
+        run: >-
+          terraform plan
+          -out=tfplan
+          -var-file="environments/${{ matrix.environment }}.tfvars.example"
+          -var="image_tag=${IMAGE_TAG}"
+      - name: Deploy to ECS
+        working-directory: infra
+        run: terraform apply -auto-approve tfplan
+      - name: Wait for ECS stability
+        working-directory: infra
+        run: >-
+          aws ecs wait services-stable
+          --cluster "$(terraform output -raw ecs_cluster_name)"
+          --services "$(terraform output -raw ecs_service_name)"

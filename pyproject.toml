@@ -1,0 +1,70 @@
+[project]
+name = "lacrei-health-api"
+version = "1.0.0"
+description = "API REST para gerenciamento seguro de profissionais e consultas da Lacrei Saúde"
+authors = [{ name = "Lacrei Saúde Contributors" }]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dynamic = ["dependencies"]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+django = "~5.2.17"
+djangorestframework = "~3.17.2"
+djangorestframework-simplejwt = "~5.5.1"
+django-cors-headers = "~4.9.0"
+django-filter = "~26.1"
+drf-spectacular = "~0.30.0"
+psycopg = { version = "~3.3.6", extras = ["binary"] }
+gunicorn = "~26.2.0"
+whitenoise = "~6.12.0"
+python-json-logger = "~4.2.0"
+
+[tool.poetry.group.dev.dependencies]
+coverage = { version = "~7.16.1", extras = ["toml"] }
+ruff = "~0.16.8"
+bandit = "~1.9.4"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["*/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "DJ"]
+ignore = ["DJ001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.coverage.run]
+branch = true
+source = ["apps", "config"]
+omit = [
+  "*/migrations/*",
+  "*/tests/*",
+  "manage.py",
+  "config/asgi.py",
+  "config/wsgi.py",
+  "*/config/settings.py",
+  "*/config/settings/*",
+  "*settings.py",
+]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]

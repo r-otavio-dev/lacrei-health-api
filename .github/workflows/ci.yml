@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  POETRY_VERSION: "2.2.1"
+  DJANGO_SETTINGS_MODULE: config.settings
+  DJANGO_SECRET_KEY: ci-only-secret-key
+  POSTGRES_DB: lacrei_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_HOST: 127.0.0.1
+  POSTGRES_PORT: "5432"
+  DB_HOST: 127.0.0.1
+  DB_PORT: "5432"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install Poetry
+        run: pip install "poetry==${POETRY_VERSION}"
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+      - name: Validate dependency metadata
+        run: poetry check --strict
+      - name: Run Ruff
+        run: poetry run ruff check .
+      - name: Check formatting
+        run: poetry run ruff format --check .
+      - name: Run security static analysis
+        run: poetry run bandit -q -r apps config -x '*/tests/*'
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: lacrei_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lacrei_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install Poetry
+        run: pip install "poetry==${POETRY_VERSION}"
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+      - name: Check migrations
+        run: poetry run python manage.py makemigrations --check --dry-run
+      - name: Validate OpenAPI schema
+        run: poetry run python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yml
+      - name: Run tests
+        run: poetry run coverage run manage.py test
+      - name: Enforce coverage
+        run: poetry run coverage report
+
+  build:
+    name: Build
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: lacrei-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

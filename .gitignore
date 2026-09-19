@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+.coverage
+coverage.xml
+htmlcov/
+.ruff_cache/
+.pytest_cache/
+
+# Django
+*.log
+db.sqlite3
+staticfiles/
+media/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+!infra/.terraform.lock.hcl
+crash.log
+
+# Local workspace
+work/
+outputs/

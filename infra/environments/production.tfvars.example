@@ -1,0 +1,11 @@
+environment                    = "production"
+vpc_cidr                       = "10.30.0.0/16"
+desired_count                  = 2
+task_cpu                       = 512
+task_memory                    = 1024
+log_retention_days             = 30
+database_instance_class        = "db.t4g.small"
+database_multi_az              = true
+database_backup_retention_days = 14
+database_deletion_protection   = true
+database_skip_final_snapshot   = false

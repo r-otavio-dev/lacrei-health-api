@@ -1,0 +1,73 @@
+name: lacrei-api
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lacrei}
+      POSTGRES_USER: ${POSTGRES_USER:-lacrei}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lacrei}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  web:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings}
+      DJANGO_ENV: ${DJANGO_ENV:-development}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-unsafe-local-only}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web}
+      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:3000}
+      # The app container uses the component variables below. This intentionally
+      # overrides a host-oriented DATABASE_URL copied from .env.example.
+      DATABASE_URL: ""
+      POSTGRES_DB: ${POSTGRES_DB:-lacrei}
+      POSTGRES_USER: ${POSTGRES_USER:-lacrei}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lacrei}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DB_HOST: db
+      DB_PORT: 5432
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-1}
+      COLLECT_STATIC: ${COLLECT_STATIC:-1}
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready/', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    volumes:
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+
+volumes:
+  postgres_data:
+  static_data:
+  media_data:
