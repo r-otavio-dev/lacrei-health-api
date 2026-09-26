@@ -2,7 +2,20 @@
 
 [![CI](https://github.com/r-otavio-dev/lacrei-health-api/actions/workflows/ci.yml/badge.svg)](https://github.com/r-otavio-dev/lacrei-health-api/actions/workflows/ci.yml)
 
-API REST para cadastrar profissionais de saúde e gerenciar consultas vinculadas a essas pessoas. O projeto foi desenhado para ser reproduzível localmente, seguro por padrão e preparado para entrega contínua em ambientes separados de staging e produção.
+API REST de estudo para cadastrar profissionais de saúde e gerenciar consultas vinculadas a essas pessoas.
+
+> **Contexto:** este repositório foi desenvolvido a partir de um desafio técnico, com apoio significativo de ferramentas de IA na implementação e na documentação. Ele serve como material de estudo. Não representa domínio avançado de Django, PostgreSQL, Docker, AWS ou Terraform.
+
+O código da API e os testes podem ser executados localmente. A infraestrutura descrita para AWS é uma proposta técnica e não foi implantada; não existe ambiente público de staging ou produção.
+
+## O que estou estudando com este repositório
+
+- estrutura básica de uma API com Django REST Framework;
+- modelos, serializers, views e rotas;
+- autenticação e validação de dados;
+- testes automatizados de endpoints;
+- configuração local com variáveis de ambiente e banco de dados;
+- leitura de uma arquitetura maior para entender seus componentes e limites.
 
 ## Funcionalidades
 
